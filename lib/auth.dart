@@ -8,15 +8,21 @@ class Api {
   static final Api instance = Api._();
 
   final _storage = const FlutterSecureStorage();
+  final _client = http.Client();
+
+  static const _timeout = Duration(seconds: 15);
+
+  // Cache the parsed base URL so we don't re-parse on every request.
+  static final _baseUri = Uri.parse(
+    Config.apiBaseUrl.replaceAll(RegExp(r'/$'), ''),
+  );
 
   Future<String?> getToken() => _storage.read(key: 'access_token');
   Future<void> setToken(String token) => _storage.write(key: 'access_token', value: token);
   Future<void> clearToken() => _storage.delete(key: 'access_token');
 
   Uri _u(String path, [Map<String, String>? qs]) {
-    final base = Uri.parse(Config.apiBaseUrl);
-    return Uri.parse('${base.toString().replaceAll(RegExp(r'/$'), '')}$path')
-        .replace(queryParameters: qs);
+    return Uri.parse('$_baseUri$path').replace(queryParameters: qs);
   }
 
   Future<Map<String, dynamic>> postJson(String path, Map<String, dynamic> body,
@@ -28,7 +34,9 @@ class Api {
       ...?extraHeaders,
     };
 
-    final res = await http.post(_u(path), headers: headers, body: jsonEncode(body));
+    final res = await _client
+        .post(_u(path), headers: headers, body: jsonEncode(body))
+        .timeout(_timeout);
     final text = res.body;
     final data = text.isNotEmpty ? jsonDecode(text) : null;
 
@@ -44,7 +52,9 @@ class Api {
       if (token != null) 'authorization': 'Bearer $token',
     };
 
-    final res = await http.get(_u(path, qs), headers: headers);
+    final res = await _client
+        .get(_u(path, qs), headers: headers)
+        .timeout(_timeout);
     final text = res.body;
     final data = text.isNotEmpty ? jsonDecode(text) : null;
 
