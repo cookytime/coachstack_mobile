@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const CoachStackApp());
 }
 
@@ -39,11 +40,13 @@ class _BootstrapPageState extends State<BootstrapPage> {
   Future<void> _boot() async {
     try {
       final token = await Api.instance.getToken();
+      if (!mounted) return;
       setState(() {
         _authed = token != null && token.isNotEmpty;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _err = '$e';
         _loading = false;
@@ -73,15 +76,26 @@ class _LoginPageState extends State<LoginPage> {
   bool _busy = false;
   String? _msg;
 
+  @override
+  void dispose() {
+    _email.dispose();
+    _token.dispose();
+    _devSecret.dispose();
+    super.dispose();
+  }
+
   Future<void> _start() async {
     setState(() { _busy = true; _msg = null; });
     try {
       await Api.instance.startMagicLink(_email.text.trim());
-      setState(() => _msg = 'Magic link sent. Paste token from link below and verify.');
+      if (!mounted) return;
+      setState(() {
+        _msg = 'Magic link sent. Paste token from link below and verify.';
+        _busy = false;
+      });
     } catch (e) {
-      setState(() => _msg = 'Error: $e');
-    } finally {
-      setState(() => _busy = false);
+      if (!mounted) return;
+      setState(() { _msg = 'Error: $e'; _busy = false; });
     }
   }
 
@@ -92,9 +106,8 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const DashboardPage()));
     } catch (e) {
-      setState(() => _msg = 'Error: $e');
-    } finally {
-      setState(() => _busy = false);
+      if (!mounted) return;
+      setState(() { _msg = 'Error: $e'; _busy = false; });
     }
   }
 
@@ -105,9 +118,8 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const DashboardPage()));
     } catch (e) {
-      setState(() => _msg = 'Error: $e');
-    } finally {
-      setState(() => _busy = false);
+      if (!mounted) return;
+      setState(() { _msg = 'Error: $e'; _busy = false; });
     }
   }
 
@@ -198,8 +210,10 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() { _busy = true; _err = null; });
     try {
       final d = await Api.instance.dashboard(days: 14);
+      if (!mounted) return;
       setState(() { _dash = d; _busy = false; });
     } catch (e) {
+      if (!mounted) return;
       setState(() { _err = '$e'; _busy = false; });
     }
   }
